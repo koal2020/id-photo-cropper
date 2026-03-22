@@ -8,8 +8,9 @@ import BackgroundSelector from '@/components/BackgroundSelector';
 import { SizePreset, SIZE_PRESETS, BackgroundColor, BACKGROUND_COLORS, validateImage } from '@/lib/config';
 import { loadImage, createCanvas } from '@/lib/utils';
 
-// Worker API 地址（本地开发时使用 localhost，生产环境替换为实际 Worker 地址）
-const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'http://localhost:8787';
+// Worker API 地址
+// 部署后请替换为实际的 Worker URL，例如：https://id-photo-cropper-worker.xxx.workers.dev
+const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'https://id-photo-cropper-worker.hanbsong94.workers.dev';
 
 export default function Home() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);

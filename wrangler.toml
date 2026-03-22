@@ -1,6 +1,7 @@
 name = "id-photo-cropper-worker"
 main = "worker/index.js"
 compatibility_date = "2024-01-01"
+account_id = "ac84cd15621345d498951657995983aa"
 
 [vars]
 # 环境变量将在部署时设置
