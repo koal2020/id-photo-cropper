@@ -8,13 +8,18 @@ import BackgroundSelector from '@/components/BackgroundSelector';
 import { SizePreset, SIZE_PRESETS, BackgroundColor, BACKGROUND_COLORS, validateImage } from '@/lib/config';
 import { loadImage, createCanvas } from '@/lib/utils';
 
+// Worker API 地址（本地开发时使用 localhost，生产环境替换为实际 Worker 地址）
+const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'http://localhost:8787';
+
 export default function Home() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [croppedImage, setCroppedImage] = useState<string | null>(null);
+  const [processedImage, setProcessedImage] = useState<string | null>(null); // 去背景后的图片
   const [selectedSize, setSelectedSize] = useState<SizePreset>(SIZE_PRESETS[0]);
   const [selectedBg, setSelectedBg] = useState<BackgroundColor>(BACKGROUND_COLORS[0]);
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [removingBg, setRemovingBg] = useState<boolean>(false);
   const [step, setStep] = useState<'upload' | 'crop' | 'result'>('upload');
 
   const handleUpload = useCallback((file: File) => {
@@ -42,26 +47,62 @@ export default function Home() {
 
   const handleCrop = useCallback((cropData: string) => {
     setCroppedImage(cropData);
+    setProcessedImage(null); // 重置处理后的图片
     setStep('result');
   }, []);
 
-  const handleDownload = useCallback(async () => {
+  // 去除背景
+  const removeBackground = useCallback(async () => {
     if (!croppedImage) return;
+
+    setRemovingBg(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${WORKER_URL}/api/remove-bg`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ image: croppedImage }),
+      });
+
+      if (!response.ok) {
+        throw new Error('去除背景失败');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setProcessedImage(data.image);
+      } else {
+        throw new Error(data.error || '处理失败');
+      }
+    } catch (err) {
+      console.error('Remove background error:', err);
+      setError('去除背景失败，请稍后重试或使用纯色背景');
+    } finally {
+      setRemovingBg(false);
+    }
+  }, [croppedImage]);
+
+  const handleDownload = useCallback(async () => {
+    const sourceImage = processedImage || croppedImage;
+    if (!sourceImage) return;
 
     setLoading(true);
     try {
-      // Load cropped image
-      const img = await loadImage(croppedImage);
+      // Load image
+      const img = await loadImage(sourceImage);
       
-      // Create canvas with background color
+      // Create canvas with target size
       const canvas = createCanvas(selectedSize.width, selectedSize.height);
       const ctx = canvas.getContext('2d')!;
       
-      // Fill background
+      // Fill background color (if processedImage exists, it's transparent PNG)
       ctx.fillStyle = selectedBg.hex;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
-      // Draw cropped image on top
+      // Draw image on top
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       
       // Download
@@ -74,14 +115,18 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [croppedImage, selectedSize, selectedBg]);
+  }, [croppedImage, processedImage, selectedSize, selectedBg]);
 
   const handleReset = useCallback(() => {
     setUploadedImage(null);
     setCroppedImage(null);
+    setProcessedImage(null);
     setStep('upload');
     setError('');
   }, []);
+
+  // 预览用的图片（优先显示处理后的透明图+背景色，否则显示裁剪图）
+  const previewImage = processedImage || croppedImage;
 
   return (
     <main className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
@@ -92,7 +137,7 @@ export default function Home() {
             证件照裁剪工具
           </h1>
           <p className="text-gray-600">
-            上传照片，选择尺寸，一键生成标准证件照
+            上传照片，智能裁剪，一键生成标准证件照
           </p>
         </div>
 
@@ -108,14 +153,14 @@ export default function Home() {
               return (
                 <div key={label} className="flex items-center">
                   <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
-                    isActive ? 'bg-primary text-white' :
+                    isActive ? 'bg-blue-600 text-white' :
                     isCompleted ? 'bg-green-500 text-white' :
                     'bg-gray-200 text-gray-600'
                   }`}>
                     {isCompleted ? '✓' : index + 1}
                   </div>
                   <span className={`ml-2 text-sm ${
-                    isActive ? 'text-primary font-medium' :
+                    isActive ? 'text-blue-600 font-medium' :
                     isCompleted ? 'text-green-600' :
                     'text-gray-500'
                   }`}>
@@ -138,7 +183,7 @@ export default function Home() {
                 <ImageUploader onUpload={handleUpload} error={error} />
                 {loading && (
                   <div className="text-center py-4">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent" />
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent" />
                     <p className="mt-2 text-sm text-gray-600">正在处理...</p>
                   </div>
                 )}
@@ -169,12 +214,12 @@ export default function Home() {
               </div>
             )}
 
-            {step === 'result' && croppedImage && (
+            {step === 'result' && previewImage && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
-                  <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center">
+                  <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center" style={{ backgroundColor: processedImage ? selectedBg.hex : '#f3f4f6' }}>
                     <img
-                      src={croppedImage}
+                      src={previewImage}
                       alt="裁剪结果"
                       className="max-w-full max-h-96 object-contain rounded-lg shadow-md"
                     />
@@ -189,7 +234,7 @@ export default function Home() {
                     <button
                       onClick={handleDownload}
                       disabled={loading}
-                      className="flex-1 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-50"
+                      className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
                     >
                       {loading ? '生成中...' : '下载证件照'}
                     </button>
@@ -207,7 +252,35 @@ export default function Home() {
                         <span className="text-gray-500">像素</span>
                         <span className="font-medium">{selectedSize.width}×{selectedSize.height}</span>
                       </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">背景处理</span>
+                        <span className="font-medium">{processedImage ? '✓ 已抠图' : '纯色背景'}</span>
+                      </div>
                     </div>
+                  </div>
+
+                  {/* 背景移除按钮 */}
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <h3 className="text-sm font-medium text-blue-900 mb-2">AI 智能抠图</h3>
+                    <p className="text-xs text-blue-700 mb-3">
+                      自动去除原背景，替换为纯色证件照背景
+                    </p>
+                    <button
+                      onClick={removeBackground}
+                      disabled={removingBg || !!processedImage}
+                      className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {removingBg ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                          处理中...
+                        </span>
+                      ) : processedImage ? (
+                        '✓ 已完成抠图'
+                      ) : (
+                        '🪄 一键去除背景'
+                      )}
+                    </button>
                   </div>
                   
                   <BackgroundSelector
@@ -234,8 +307,9 @@ export default function Home() {
         </div>
 
         {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500">
+        <div className="mt-8 text-center text-sm text-gray-500 space-y-1">
           <p>图片仅在浏览器中处理，不会上传到服务器</p>
+          <p>AI 抠图功能通过 Cloudflare Worker 调用 remove.bg API</p>
         </div>
       </div>
     </main>
