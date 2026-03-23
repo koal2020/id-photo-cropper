@@ -6,7 +6,7 @@ import ImageCropper from '@/components/ImageCropper';
 import SizeSelector from '@/components/SizeSelector';
 import BackgroundSelector from '@/components/BackgroundSelector';
 import { SizePreset, SIZE_PRESETS, BackgroundColor, BACKGROUND_COLORS, validateImage } from '@/lib/config';
-import { loadImage, createCanvas } from '@/lib/utils';
+import { loadImage, createCanvas, downloadAllSizes } from '@/lib/utils';
 
 // Worker API 地址
 const WORKER_URL = 'https://id-photo-cropper-worker.hanbsong94.workers.dev';
@@ -19,6 +19,7 @@ export default function Home() {
   const [selectedBg, setSelectedBg] = useState<BackgroundColor>(BACKGROUND_COLORS[0]);
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [batchLoading, setBatchLoading] = useState<boolean>(false);
   const [removingBg, setRemovingBg] = useState<boolean>(false);
   const [step, setStep] = useState<'upload' | 'crop' | 'result'>('upload');
 
@@ -117,8 +118,20 @@ export default function Home() {
     }
   }, [croppedImage, processedImage, selectedSize, selectedBg]);
 
+  const handleBatchDownload = useCallback(async () => {
+    const sourceImage = processedImage || croppedImage;
+    if (!sourceImage) return;
+    setBatchLoading(true);
+    try {
+      await downloadAllSizes(sourceImage, selectedBg);
+    } catch (err) {
+      setError('批量生成失败，请重试');
+    } finally {
+      setBatchLoading(false);
+    }
+  }, [croppedImage, processedImage, selectedBg]);
+
   const handleReset = useCallback(() => {
-    setUploadedImage(null);
     setCroppedImage(null);
     setProcessedImage(null);
     setStep('upload');
@@ -239,6 +252,18 @@ export default function Home() {
                       {loading ? '生成中...' : '下载证件照'}
                     </button>
                   </div>
+                  <button
+                    onClick={handleBatchDownload}
+                    disabled={batchLoading || loading}
+                    className="w-full mt-2 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    {batchLoading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                        正在生成全套尺寸...
+                      </span>
+                    ) : '📦 下载全部尺寸（ZIP）'}
+                  </button>
                 </div>
                 <div className="space-y-6">
                   <div className="bg-gray-50 rounded-lg p-4">
