@@ -9,7 +9,7 @@ import { SizePreset, SIZE_PRESETS, BackgroundColor, BACKGROUND_COLORS, validateI
 import { loadImage, createCanvas, downloadAllSizes } from '@/lib/utils';
 
 // Worker API 地址
-const WORKER_URL = 'https://id-photo-cropper-worker.hanbsong94.workers.dev';
+const WORKER_URL = 'https://id-photo-cropper.hanbsong94.workers.dev';
 
 export default function Home() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);

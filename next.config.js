@@ -4,6 +4,10 @@ const nextConfig = {
   distDir: 'dist',
   images: {
     unoptimized: true
+  },
+  webpack: (config) => {
+    config.resolve.fallback = { fs: false, encoding: false };
+    return config;
   }
 }
 
