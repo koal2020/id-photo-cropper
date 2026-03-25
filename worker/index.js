@@ -38,14 +38,12 @@ export default {
         });
       }
 
-      // 将 base64 转换为 Blob
+      // 提取纯 base64 数据（去掉 data:image/xxx;base64, 前缀）
       const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
-      const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-      const blob = new Blob([binaryData], { type: 'image/png' });
 
-      // 构建 FormData
+      // 使用 image_base64 参数直接传 base64，避免 Blob 转换问题
       const formData = new FormData();
-      formData.append('image_file', blob, 'image.png');
+      formData.append('image_base64', base64Data);
       formData.append('size', 'auto');
 
       // 调用 remove.bg API
@@ -74,7 +72,12 @@ export default {
 
       // 获取处理后的图片（PNG 格式，透明背景）
       const resultBuffer = await response.arrayBuffer();
-      const resultBase64 = btoa(String.fromCharCode(...new Uint8Array(resultBuffer)));
+      const uint8Array = new Uint8Array(resultBuffer);
+      let resultBase64 = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        resultBase64 += btoa(String.fromCharCode(...uint8Array.subarray(i, i + chunkSize)));
+      }
 
       return new Response(JSON.stringify({
         success: true,
