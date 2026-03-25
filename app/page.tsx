@@ -5,6 +5,7 @@ import ImageUploader from '@/components/ImageUploader';
 import ImageCropper from '@/components/ImageCropper';
 import SizeSelector from '@/components/SizeSelector';
 import BackgroundSelector from '@/components/BackgroundSelector';
+import GoogleLogin from '@/components/GoogleLogin';
 import { SizePreset, SIZE_PRESETS, BackgroundColor, BACKGROUND_COLORS, validateImage } from '@/lib/config';
 import { loadImage, createCanvas, downloadAllSizes } from '@/lib/utils';
 
@@ -145,13 +146,18 @@ export default function Home() {
     <main className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            证件照裁剪工具
-          </h1>
-          <p className="text-gray-600">
-            上传照片，智能裁剪，一键生成标准证件照
-          </p>
+        <div className="flex justify-between items-start mb-8">
+          <div className="text-center flex-1">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              证件照裁剪工具
+            </h1>
+            <p className="text-gray-600">
+              上传照片，智能裁剪，一键生成标准证件照
+            </p>
+          </div>
+          <div className="ml-4">
+            <GoogleLogin />
+          </div>
         </div>
 
         {/* Progress Steps */}

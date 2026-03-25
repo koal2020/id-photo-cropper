@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@tsndr/cloudflare-worker-jwt": "^3.2.1",
     "cropperjs": "^1.6.1",
     "face-api.js": "^0.22.2",
     "jszip": "^3.10.1",

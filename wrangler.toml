@@ -4,5 +4,12 @@ compatibility_date = "2024-01-01"
 account_id = "ac84cd15621345d498951657995983aa"
 
 [vars]
-# 环境变量将在部署时设置
+# 环境变量将在 Cloudflare Dashboard 中设置
+# GOOGLE_CLIENT_ID = "624931143932-k6lq1k4up4nd98qb21ptfc9h7th7k07b.apps.googleusercontent.com"
 # REMOVE_BG_API_KEY = "your-api-key-here"
+
+# 在创建 D1 数据库后，取消下面的注释并填入 database_id
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "id-photo-users"
+# database_id = "your-database-id-here"
