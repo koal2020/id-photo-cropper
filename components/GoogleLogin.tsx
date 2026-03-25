@@ -13,7 +13,7 @@ export default function GoogleLogin() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const WORKER_URL = 'https://id-photo-cropper.hanbsong94.workers.dev';
+  const WORKER_URL = 'https://id-photo-cropper-worker.hanbsong94.workers.dev';
   const GOOGLE_CLIENT_ID = '624931143932-k6lq1k4up4nd98qb21ptfc9h7th7k07b.apps.googleusercontent.com';
 
   // 检查是否已登录
