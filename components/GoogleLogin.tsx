@@ -1,11 +1,6 @@
 'use client';
 
-// ─────────────────────────────────────────────────────────────────
-// components/GoogleLogin.tsx — Header 右上角用户状态组件
-// 已登录：显示头像 + 姓名 + 配额徽章，点击头像打开个人中心（后续）
-// 未登录：渲染 Google 登录按钮
-// ─────────────────────────────────────────────────────────────────
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { User, WORKER_URL } from '@/lib/auth';
 
 const GOOGLE_CLIENT_ID = '624931143932-k6lq1k4up4nd98qb21ptfc9h7th7k07b.apps.googleusercontent.com';
@@ -19,60 +14,67 @@ interface Props {
 }
 
 export default function GoogleLogin({ user, loading, onLogin, onLogout, onOpenDrawer }: Props) {
+  const btnRef = useRef<HTMLDivElement>(null);
+  // 用 ref 持有最新的 onLogin，避免 useEffect 闭包捕获旧值
+  const onLoginRef = useRef(onLogin);
+  useEffect(() => { onLoginRef.current = onLogin; }, [onLogin]);
 
-  // 未登录时挂载 Google 按钮
   useEffect(() => {
+    // 已登录或还在加载中，不挂载 Google 按钮
     if (user || loading) return;
 
-    const scriptId = 'gsi-script';
-    const init = () => {
+    const renderBtn = () => {
+      if (!btnRef.current) return;
       // @ts-ignore
       window.google?.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
-        callback: handleCredential,
+        callback: async (response: any) => {
+          try {
+            const res = await fetch(`${WORKER_URL}/api/auth/callback`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ credential: response.credential }),
+            });
+            const data = await res.json();
+            if (data.success) {
+              // @ts-ignore
+              window.google?.accounts.id.cancel();
+              onLoginRef.current(data.token, data.user);
+            }
+          } catch (err) {
+            console.error('Login error:', err);
+          }
+        },
         auto_select: false,
         cancel_on_tap_outside: true,
       });
       // @ts-ignore
-      window.google?.accounts.id.renderButton(
-        document.getElementById('header-login-btn'),
-        { theme: 'outline', size: 'medium', width: 180, text: 'signin_with', shape: 'rectangular' }
-      );
+      window.google?.accounts.id.renderButton(btnRef.current, {
+        theme: 'outline',
+        size: 'medium',
+        width: 180,
+        text: 'signin_with',
+        shape: 'rectangular',
+      });
     };
 
+    const scriptId = 'gsi-script';
     if (document.getElementById(scriptId)) {
-      init();
+      // 脚本已存在，等下一帧确保 DOM 就绪
+      requestAnimationFrame(renderBtn);
     } else {
       const script = document.createElement('script');
       script.id = scriptId;
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
       script.defer = true;
-      script.onload = init;
+      script.onload = renderBtn;
       document.body.appendChild(script);
     }
   }, [user, loading]);
 
-  const handleCredential = async (response: any) => {
-    try {
-      const res = await fetch(`${WORKER_URL}/api/auth/callback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential: response.credential }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        // @ts-ignore
-        window.google?.accounts.id.cancel();
-        onLogin(data.token, data.user);
-      }
-    } catch (err) {
-      console.error('Login error:', err);
-    }
-  };
-
   if (loading) {
-    return <div className="w-32 h-9 bg-gray-100 animate-pulse rounded-lg" />;
+    return <div className="w-36 h-9 bg-gray-100 animate-pulse rounded-lg" />;
   }
 
   if (user) {
@@ -87,7 +89,9 @@ export default function GoogleLogin({ user, loading, onLogin, onLogout, onOpenDr
         />
         <div className="hidden sm:block text-sm">
           <div className="font-medium text-gray-800 leading-tight">{user.name}</div>
-          <div className="text-xs text-gray-400 capitalize">{user.plan === 'free' ? '免费版' : user.plan === 'basic' ? '基础版' : 'Pro'}</div>
+          <div className="text-xs text-gray-400">
+            {user.plan === 'pro' ? 'Pro' : user.plan === 'basic' ? '基础版' : '免费版'}
+          </div>
         </div>
         <button
           onClick={onLogout}
@@ -99,5 +103,6 @@ export default function GoogleLogin({ user, loading, onLogin, onLogout, onOpenDr
     );
   }
 
-  return <div id="header-login-btn" />;
+  // 未登录：挂载点，Google SDK 会往这里注入按钮
+  return <div ref={btnRef} id="header-login-btn" />;
 }

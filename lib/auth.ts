@@ -82,10 +82,10 @@ export function useAuth() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
-  // 登录成功后调用（保存 token + 刷新状态）
-  const login = useCallback((token: string, userInfo: User) => {
+  // 登录成功后调用：保存 token，立即从 /api/user/profile 拉完整数据
+  // 不直接用 /api/auth/callback 返回的 user（字段不完整，缺配额信息）
+  const login = useCallback((token: string, _userInfo: User) => {
     setToken(token);
-    setUser(userInfo);
     fetchProfile(token);
   }, [fetchProfile]);
 
