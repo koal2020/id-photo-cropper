@@ -15,9 +15,10 @@ interface Props {
   loading: boolean;
   onLogin: (token: string, user: User) => void;
   onLogout: () => void;
+  onOpenDrawer?: () => void;
 }
 
-export default function GoogleLogin({ user, loading, onLogin, onLogout }: Props) {
+export default function GoogleLogin({ user, loading, onLogin, onLogout, onOpenDrawer }: Props) {
 
   // 未登录时挂载 Google 按钮
   useEffect(() => {
@@ -81,7 +82,8 @@ export default function GoogleLogin({ user, loading, onLogin, onLogout }: Props)
           src={user.avatar}
           alt={user.name}
           className="w-8 h-8 rounded-full border border-gray-200 cursor-pointer hover:ring-2 hover:ring-blue-400 transition"
-          title="个人中心（即将上线）"
+          onClick={onOpenDrawer}
+          title="个人中心"
         />
         <div className="hidden sm:block text-sm">
           <div className="font-medium text-gray-800 leading-tight">{user.name}</div>

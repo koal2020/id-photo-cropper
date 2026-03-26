@@ -7,6 +7,7 @@ import SizeSelector from '@/components/SizeSelector';
 import BackgroundSelector from '@/components/BackgroundSelector';
 import GoogleLogin from '@/components/GoogleLogin';
 import LoginModal from '@/components/LoginModal';
+import UserDrawer from '@/components/UserDrawer';
 import { SizePreset, SIZE_PRESETS, BackgroundColor, BACKGROUND_COLORS, validateImage, calcOutputSize, OUTPUT_TIERS } from '@/lib/config';
 import { loadImage, createCanvas, downloadAllSizes } from '@/lib/utils';
 import { useAuth, WORKER_URL, authHeaders } from '@/lib/auth';
@@ -33,6 +34,9 @@ export default function Home() {
   const [loginModal, setLoginModal] = useState<{ open: boolean; scene: 'download' | 'removeBg' }>({
     open: false, scene: 'removeBg',
   });
+
+  // ─── 个人中心抽屉 ─────────────────────────────────────────────
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const openLoginModal = (scene: 'download' | 'removeBg') =>
     setLoginModal({ open: true, scene });
@@ -205,6 +209,17 @@ export default function Home() {
         onLogin={(token, userInfo) => login(token, userInfo as any)}
       />
 
+      {/* ─── 个人中心抽屉 ─────────────────────────────────────── */}
+      {user && (
+        <UserDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          user={user}
+          quota={quota}
+          onLogout={logout}
+        />
+      )}
+
       <div className="max-w-4xl mx-auto">
         {/* ─── Header ─────────────────────────────────────────── */}
         <div className="flex justify-between items-start mb-8">
@@ -218,6 +233,7 @@ export default function Home() {
               loading={authLoading}
               onLogin={login}
               onLogout={logout}
+              onOpenDrawer={() => setDrawerOpen(true)}
             />
           </div>
         </div>
