@@ -65,16 +65,23 @@ export function useAuth() {
     if (!t) { setLoading(false); return; }
 
     try {
+      // 5秒超时兜底，确保 loading 不会永远卡住
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+
       const res = await fetch(`${WORKER_URL}/api/user/profile`, {
         headers: { Authorization: `Bearer ${t}` },
+        signal: controller.signal,
       });
+      clearTimeout(timer);
+
       if (!res.ok) { clearToken(); setUser(null); setQuota(null); return; }
 
       const data = await res.json();
       setUser(data.user);
       setQuota(data.quota);
     } catch {
-      // 网络错误：保留 token，不强制登出
+      // 网络错误或超时：保留 token，不强制登出，但必须结束 loading
     } finally {
       setLoading(false);
     }

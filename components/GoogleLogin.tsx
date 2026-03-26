@@ -14,19 +14,40 @@ interface Props {
 }
 
 export default function GoogleLogin({ user, loading, onLogin, onLogout, onOpenDrawer }: Props) {
-  const btnRef = useRef<HTMLDivElement>(null);
-  // 用 ref 持有最新的 onLogin，避免 useEffect 闭包捕获旧值
   const onLoginRef = useRef(onLogin);
   useEffect(() => { onLoginRef.current = onLogin; }, [onLogin]);
 
+  // Google 脚本只加载一次
   useEffect(() => {
-    // 已登录或还在加载中，不挂载 Google 按钮
+    const scriptId = 'gsi-script';
+    if (document.getElementById(scriptId)) return;
+    const script = document.createElement('script');
+    script.id = scriptId;
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    document.body.appendChild(script);
+  }, []);
+
+  // 未登录且不在 loading 时，渲染 Google 按钮
+  // 用独立 useEffect，在 DOM 更新后执行
+  useEffect(() => {
+    // 只在：未登录 + 不在加载中 时挂载按钮
     if (user || loading) return;
 
-    const renderBtn = () => {
-      if (!btnRef.current) return;
+    const tryRender = () => {
+      const el = document.getElementById('header-login-btn');
+      if (!el) return;
+
       // @ts-ignore
-      window.google?.accounts.id.initialize({
+      const google = window.google;
+      if (!google) {
+        // 脚本还没加载完，等 500ms 再试
+        setTimeout(tryRender, 500);
+        return;
+      }
+
+      google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: async (response: any) => {
           try {
@@ -37,8 +58,7 @@ export default function GoogleLogin({ user, loading, onLogin, onLogout, onOpenDr
             });
             const data = await res.json();
             if (data.success) {
-              // @ts-ignore
-              window.google?.accounts.id.cancel();
+              google.accounts.id.cancel();
               onLoginRef.current(data.token, data.user);
             }
           } catch (err) {
@@ -48,8 +68,8 @@ export default function GoogleLogin({ user, loading, onLogin, onLogout, onOpenDr
         auto_select: false,
         cancel_on_tap_outside: true,
       });
-      // @ts-ignore
-      window.google?.accounts.id.renderButton(btnRef.current, {
+
+      google.accounts.id.renderButton(el, {
         theme: 'outline',
         size: 'medium',
         width: 180,
@@ -58,19 +78,8 @@ export default function GoogleLogin({ user, loading, onLogin, onLogout, onOpenDr
       });
     };
 
-    const scriptId = 'gsi-script';
-    if (document.getElementById(scriptId)) {
-      // 脚本已存在，等下一帧确保 DOM 就绪
-      requestAnimationFrame(renderBtn);
-    } else {
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = renderBtn;
-      document.body.appendChild(script);
-    }
+    // 等 React DOM commit 完成后再执行
+    setTimeout(tryRender, 100);
   }, [user, loading]);
 
   if (loading) {
@@ -103,6 +112,5 @@ export default function GoogleLogin({ user, loading, onLogin, onLogout, onOpenDr
     );
   }
 
-  // 未登录：挂载点，Google SDK 会往这里注入按钮
-  return <div ref={btnRef} id="header-login-btn" />;
+  return <div id="header-login-btn" />;
 }
